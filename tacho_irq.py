@@ -13,9 +13,6 @@ led_y2=PWM(Pin(2))
 led_r1=PWM(Pin(1))
 led_r2=PWM(Pin(0))
 
-base=Pin(15, Pin.OUT)
-col=Pin(16, Pin.IN, Pin.PULL_DOWN)
-
 #duty_preset
 freq=1000
 dw=60
@@ -24,13 +21,12 @@ dg=10
 dy=20
 dr=30
 
-pluseup=0
+pulseup=0
 st=0
 tb=0
 ta=0
 tw=0
 rpm=0
-
 
 def pulse(p):
     global pulseup
@@ -120,52 +116,62 @@ def openning():
         led_r2.duty_u16(0)
         time.sleep(0.05)
 
-    #ベース電源ON
-    base.value()
+def main():
+    global pulseup,tb,ta,tw,rpm
+    pluseup=None
+    
+    base=Pin(15, Pin.OUT)
+    col=Pin(16, Pin.IN, Pin.PULL_DOWN)
+
+
+    base.value(1)
     
     col.irq(trigger=Pin.IRQ_RISING,handler=pulse)
 
-
-def math():
-    if pulseup(p):
-            global tb,ta,tw,rpm
-            led_r0.duty_u16(int(65535*1/dr))
-            tb=time.ticks_ms()
-            tw=tb-ta
-            ta=tb
-            rpm=60000/tw
-            if rpm > 1000:
-                led_w1.duty_u16(int(65535*1/dw))
-            if rpm > 2000:
-                led_w2.duty_u16(int(65535*1/dw))
-            if rpm > 3000:
-                led_b1.duty_u16(int(65535*1/db))
-            if rpm > 4000:
-                led_b2.duty_u16(int(65535*1/db))
-            if rpm > 5000:
-                led_g1.duty_u16(int(65535*1/dg))
-            if rpm > 6000:
-                led_g2.duty_u16(int(65535*1/dg))
-            if rpm > 7000:
-                led_y1.duty_u16(int(65535*1/dy))
-            if rpm > 8000:
-                led_y2.duty_u16(int(65535*1/dy))
-            if rpm > 9000:
-                led_r1.duty_u16(int(65535*1/dr))
-            if rpm > 10000:
-                led_r2.duty_u16(int(65535*1/dr))
-            print (rpm)
-            pulseup=0
+    interval = 50000
+   
+    ref_time = time.ticks_us()
+               
+    print(base.value(),col.value())          
+    while True:
+        if pulseup:
+            state=machine.disable_irq()
+            irq_flags=pulseup.irq().flags()
+            pulseup_value=pulseup.value()
+            time_diff=time.ticks_diff(time.ticks_us(), ref_time)
+            machine.enable_irq(state)
             
-            
-            
-openning()
-
-while True:
-    st=col.value()
-    if not col.value()==st:
-        if col.value()==0:
-            math()
+            if time_diff > interval:
+                if pulseup_value == 1:
+                    if irq_flags == 8:
+                        if pulseup == col:
+                            led_r0.duty_u16(int(65535*1/dr))
+                            tb=time.ticks_ms()
+                            tw=tb-ta
+                            ta=tb
+                            rpm=60000/tw
+                            if rpm > 1000:
+                                led_w1.duty_u16(int(65535*1/dw))
+                            if rpm > 2000:
+                                led_w2.duty_u16(int(65535*1/dw))
+                            if rpm > 3000:
+                                led_b1.duty_u16(int(65535*1/db))
+                            if rpm > 4000:
+                                led_b2.duty_u16(int(65535*1/db))
+                            if rpm > 5000:
+                                led_g1.duty_u16(int(65535*1/dg))
+                            if rpm > 6000:
+                                led_g2.duty_u16(int(65535*1/dg))
+                            if rpm > 7000:
+                                led_y1.duty_u16(int(65535*1/dy))
+                            if rpm > 8000:
+                                led_y2.duty_u16(int(65535*1/dy))
+                            if rpm > 9000:
+                                led_r1.duty_u16(int(65535*1/dr))
+                            if rpm > 10000:
+                                led_r2.duty_u16(int(65535*1/dr))
+                            print (irq_flags,rpm)
+                            pulseup=None
         else:
             time.sleep(0.1)
             led_r0.duty_u16(0)
@@ -179,3 +185,7 @@ while True:
             led_y2.duty_u16(0)
             led_r1.duty_u16(0)
             led_r2.duty_u16(0)
+
+openning()
+if __name__ == "__main__":
+   main()
