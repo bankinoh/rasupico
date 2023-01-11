@@ -1,6 +1,7 @@
 from machine import Pin,PWM
 import time
 
+#LED定義
 led_r0=PWM(Pin(10))
 led_w1=PWM(Pin(9))
 led_w2=PWM(Pin(8))
@@ -13,7 +14,7 @@ led_y2=PWM(Pin(2))
 led_r1=PWM(Pin(1))
 led_r2=PWM(Pin(0))
 
-#duty_preset
+#LED色別設定
 freq=1000
 dw=60
 db=60
@@ -21,6 +22,7 @@ dg=10
 dy=20
 dr=30
 
+#変数定義
 pulseup=0
 st=0
 tb=0
@@ -28,12 +30,13 @@ ta=0
 tw=0
 rpm=0
 
+#パルス入力フラグ
 def pulse(p):
     global pulseup
     pulseup=p
 
+#オープニング&初期化
 def openning():
-    #初期化
     led_r0.freq(freq)
     led_r0.duty_u16(int(65535*1/dr))
     time.sleep(0.1)
@@ -116,35 +119,49 @@ def openning():
         led_r2.duty_u16(0)
         time.sleep(0.05)
 
+#メイン処理
 def main():
-    global pulseup,tb,ta,tw,rpm
+    global pulseup,tb,ta,tw,rpm 
     pluseup=None
     
+    #入出力ピン定義
     base=Pin(15, Pin.OUT)
     col=Pin(16, Pin.IN, Pin.PULL_DOWN)
 
-
+    #ベース電源ON
     base.value(1)
     
+    #コレクタ側割り込み設定
     col.irq(trigger=Pin.IRQ_RISING,handler=pulse)
 
+    #割り込みインターバル
     interval = 50000
    
+    #基準時間
     ref_time = time.ticks_us()
-               
-    print(base.value(),col.value())          
+
+    #ピン状態表示
+    print(base.value(),col.value())
+    
+    
+    #繰り返し
     while True:
+    	#パルス立ち上がりで割り込み
         if pulseup:
+            #ステータス定義
             state=machine.disable_irq()
             irq_flags=pulseup.irq().flags()
             pulseup_value=pulseup.value()
             time_diff=time.ticks_diff(time.ticks_us(), ref_time)
             machine.enable_irq(state)
-            
+
+            #判定
             if time_diff > interval:
                 if pulseup_value == 1:
                     if irq_flags == 8:
                         if pulseup == col:
+                            
+                            #表示
                             led_r0.duty_u16(int(65535*1/dr))
                             tb=time.ticks_ms()
                             tw=tb-ta
@@ -172,8 +189,9 @@ def main():
                                 led_r2.duty_u16(int(65535*1/dr))
                             print (irq_flags,rpm)
                             pulseup=None
+	#パルスがない時
         else:
-            time.sleep(0.1)
+            time.sleep(0.0001)
             led_r0.duty_u16(0)
             led_w1.duty_u16(0)
             led_w2.duty_u16(0)
@@ -186,6 +204,8 @@ def main():
             led_r1.duty_u16(0)
             led_r2.duty_u16(0)
 
+
+#実行
 openning()
 if __name__ == "__main__":
    main()
